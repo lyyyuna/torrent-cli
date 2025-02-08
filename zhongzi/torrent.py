@@ -43,7 +43,7 @@ class Torrent:
         return self.meta_info[b'announce'].decode('utf-8')
     
     @property
-    def info_hash(self) -> str:
+    def info_hash(self) -> bytes:
         return self._info_hash
 
     @property
