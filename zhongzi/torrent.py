@@ -15,6 +15,7 @@ class Torrent:
         self._filename = filename
         self.files: List[TorrentFile] = []
         self._is_multi_files = False
+        self._pieces = None
 
         with open(self._filename, 'rb') as f:
             meta = f.read()
@@ -23,7 +24,6 @@ class Torrent:
             self._info_hash = sha1(info).digest()
             self._name = self.meta_info[b'info'][b'name'].decode('utf-8')
             self._piece_length = self.meta_info[b'info'][b'piece length']
-            self._pieces = self.meta_info[b'info'][b'pieces']
 
             if b'files' in self.meta_info[b'info']:
                 self._is_multi_files = True
@@ -66,15 +66,25 @@ class Torrent:
 
     @property
     def pieces(self):
-        pieces: List[bytes] = []
-        data = self.meta_info[b'info'][b'pieces']
+        if self._pieces is None:
+            pieces: List[Piece] = []
+            data = self.meta_info[b'info'][b'pieces']
 
-        offset = 0
-        while offset < len(data):
-            pieces.append(data[offset:offset+20])
-            offset += 20
-
-        return pieces
+            offset = 0
+            cnt_length = 0
+            while offset < len(data):
+                this_piece_length = self._piece_length
+                if cnt_length + self._piece_length > self.total_size:
+                    this_piece_length = self.total_size - cnt_length
+                cnt_length += this_piece_length
+                pieces.append(Piece(index=offset // 20,
+                                    length=this_piece_length,
+                                    offset=offset,
+                                    checksum=data[offset:offset + 20]))
+                offset += 20
+            self._pieces = pieces
+        
+        return self._pieces
     
     @property
     def name(self):
@@ -85,3 +95,36 @@ class Torrent:
             f'total length: {self.total_size}\n' \
             f'announce url: {self.announce}\n' \
             f'hash: {self.info_hash}'
+    
+
+class Piece:
+    def __init__(self, index: int, length: int, offset: int, checksum: bytes):
+        self.index = index
+        self.length = length
+        self.offset = offset
+        self.checksum = checksum
+
+        block_index = 0
+        block_length = 2**14
+        self.blocks: List[Block] = []
+        while block_index * block_length + block_length < length:
+            self.blocks.append(Block(block_index, block_length * block_index, block_length))
+            block_index += 1
+
+        last_block_length = length - block_index * block_length
+        self.blocks.append(Block(block_index, block_length * block_index, last_block_length))
+
+    @property
+    def data(self) -> bytes:
+        return self._data
+    
+    @data.setter
+    def data(self, data: bytes):
+        self._data = data
+
+
+class Block:
+    def __init__(self, index: int, offset: int, length: int):
+        self.index = index
+        self.offset = offset
+        self.length = length

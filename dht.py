@@ -11,7 +11,7 @@ async def main():
 
     await s.run()
 
-    await s.bootstrap()
+    await s.bootstrap(max_nodes=10)
 
     results = await s.get_peers(bytes.fromhex("8df9e68813c4232db0506c897ae4c210daa98250"))
 

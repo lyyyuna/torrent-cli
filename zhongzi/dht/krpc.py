@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Dict, List
+from typing import Dict, List, Tuple
 from ..bencode import Encoder, Decoder
 from .util import decode_addr
 from .node import Node
@@ -66,7 +66,7 @@ class KRPCProtocol(asyncio.DatagramProtocol):
             self.futures.pop(tid, None)
             logging.error(f"find_node error: {e}, res: {res}")
 
-    async def get_peers(self, addr, info_hash: bytes, timeout=5) -> List[Node]:
+    async def get_peers(self, addr, info_hash: bytes, timeout=5) -> List[Node] | List[Tuple[str, int]]:
         future = asyncio.Future()
         tid = self._get_transaction_id()
 

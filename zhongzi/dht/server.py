@@ -1,5 +1,5 @@
 import asyncio
-from typing import Tuple, List
+from typing import Tuple, List, Set
 from .krpc import KRPCProtocol
 from .node import Node
 import logging
@@ -27,7 +27,7 @@ class DHTServer:
         )
         self.protocol = protocol
 
-    async def bootstrap(self):
+    async def bootstrap(self, max_nodes: int | None):
         async def _find_node_with_catch(node: Node):
             try:
                 return await self.protocol.find_node(node.addr)
@@ -64,11 +64,12 @@ class DHTServer:
 
             logging.debug(f'bootstrap: {len(known)} known nodes, {len(peers)} peers')
 
-            if len(known) > 200:
-                break
+            if max_nodes:
+                if len(known) > max_nodes:
+                    break
             await asyncio.sleep(0.1)
 
-    async def get_peers(self, info_hash: bytes) -> List[Node]:
+    async def get_peers(self, info_hash: bytes) -> Set[Tuple[str, int]]:
         async def _get_peers_with_catch(node: Node):
             try:
                 return await self.protocol.get_peers(node.addr, info_hash, timeout=2)

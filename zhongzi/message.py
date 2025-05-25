@@ -1,4 +1,3 @@
-import bitstring
 import struct
 import asyncio
 from enum import Enum
@@ -22,10 +21,13 @@ class PeerMessage(Enum):
 
 class KeepAlive:
     '''
-    ||
+    |len=0|
     '''
     def __str__(self):
         return 'KeepAlive'
+    
+    def encode(self) -> bytes:
+        return struct.pack('>I', 0)
     
 
 class Choke:
@@ -72,7 +74,13 @@ class Have:
 
     def __str__(self):
         return f'Have'
-    
+
+    def encode(self):
+        return struct.pack('>IbI',
+                           5,  # Message length
+                           PeerMessage.Have.value,
+                           self.piece_index)
+        
     @classmethod
     def decode(cls, data: bytes):
         piece_index = struct.unpack('>I', data)[0]
@@ -83,7 +91,7 @@ class Bitfield:
     '''
     |len=1+X|id=5|bitfield|
     '''
-    def __init__(self, bitfield: bitstring.BitArray):
+    def __init__(self, bitfield: bytes):
         self.bitfield = bitfield
 
     def __str__(self):
@@ -184,14 +192,14 @@ async def parse_one_message(reader: asyncio.StreamReader) -> KeepAlive | Choke:
             return h
         case PeerMessage.Bitfield.value:
             b = Bitfield.decode(data)
-            logging.info(f'received bitfield message: {b.bitfield}')
+            logging.info(f'received bitfield message')
             return b
         case PeerMessage.Request.value:
             logging.info('received request message')
             return Request()
         case PeerMessage.Piece.value:
             p = Piece.decode(data)
-            logging.info('received piece message')
+            logging.info(f'received piece message {p.index}-{p.begin}-{len(p.block)}')
             return p
         case PeerMessage.Cancel.value:
             c = Cancel.decode(data)
@@ -213,5 +221,7 @@ class PeerMessageIterator:
         try:
             return await parse_one_message(self.reader)
         except Exception as e:
-            logging.info(f'peer message iterator stopped: {e}')
-            raise StopAsyncIteration()
+            logging.info(f'peer message exception: {e}')
+            if self.reader.at_eof():
+                logging.error(f'peer message iterator stopped')
+                raise StopAsyncIteration()
