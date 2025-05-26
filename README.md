@@ -1,3 +1,3 @@
-https://github.com/gsko/DHTBot
+# 'ZhongZi' bittorrent downloader
 
-https://github.com/bashkirtsevich-llc/aiobtdht
+目前实现的是一个简单的 bittorrent 下载器。（只有下载，没有上传）
